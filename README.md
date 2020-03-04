@@ -1,6 +1,9 @@
 This project is to drive a 64x32 pixel dot matrix display using a TI Piccolo Launchpad F28027.
 
+## Parts
 The panel is from Pimoroni, and originally from Adafruit (I think)
+
+A write up at http://www.rayslogic.com/propeller/Programming/AdafruitRGB/AdafruitRGB.htm pointed includes a data sheet for a similar output driver chip used on the display http://www.rayslogic.com/propeller/Programming/AdafruitRGB/MBI5026.pdf
 
 The TI Launchpad can be found on RS.
 
@@ -29,6 +32,8 @@ The code is specific to drawing a small set of images in two colours. It would n
 Don't yet know how to flash the controller and boot to that code on powerup. Testing using the IDE right now.
 
 ## Ghosting
+This issue was resolved by switching the order the clock output is toggled in. Data is read on the rising clock edge, so clock should end the loop low and be driven high after the data is set.
+
 There are pixels near the top left that flicker when this image is drawn.
 
 The problem is worse the faster the code runs. Slower drawing leads to fewer errors, but visible scan lines as the display refreshes.

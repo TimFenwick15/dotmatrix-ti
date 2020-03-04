@@ -98,7 +98,7 @@ void setGpioLow(Uint16 pin);
 void delayMicroseconds(Uint32 delayTime);
 
 GPIO_Handle myGpio;
-Uint16 i = 0;
+Uint32 i = 0;
 #define I_MAX (16)
 
 // 20:12 first char
@@ -283,8 +283,8 @@ int main(void)
         SET_OE;
         SET_LAT;
 
-        GpioDataRegs.GPASET.all |= ((Uint32)i << ADDRESS_PORT_SHIFT);
-        GpioDataRegs.GPACLEAR.all |= ~((Uint32)i << ADDRESS_PORT_SHIFT);
+        GpioDataRegs.GPASET.all |= (i << ADDRESS_PORT_SHIFT);
+        GpioDataRegs.GPACLEAR.all |= ~(i << ADDRESS_PORT_SHIFT);
 
         CLEAR_OE;
         CLEAR_LAT;
@@ -337,6 +337,14 @@ int main(void)
                 {
                     CLEAR_R2;
                 }
+                if (((glyph_1_0[i] >> (j - 16)) & 0x01) == 0x01)
+                {
+                    SET_G1;
+                }
+                else
+                {
+                    CLEAR_G1;
+                }
             }
 
             // Third glyphs
@@ -379,8 +387,8 @@ int main(void)
                     CLEAR_R2;
                 }
             }
-            CLEAR_CLK;
             SET_CLK;
+            CLEAR_CLK;
         }
         //delayMicroseconds(100);
         //while ((time - CpuTimer1Regs.TIM.all) < ABOUT_1US_OF_BIG_NUMBER) {};
