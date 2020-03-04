@@ -2,6 +2,7 @@
 #include "Library/gpio.h"
 #include "Library/F2802x_Examples.h"
 #include "Library/clk.h"
+#include "Library/flash.h"
 
 #define ROWS (32)
 #define ROW_ADDRESSES (ROWS / 2)
@@ -10,7 +11,7 @@
 
 #define CLK ((Uint16)GPIO_Number_28)
 #define OE  ((Uint16)GPIO_Number_29)
-#define LAT ((Uint16)GPIO_Number_34)
+#define LAT ((Uint16)GPIO_Number_12)
 #define A   ((Uint16)GPIO_Number_16)
 #define B   ((Uint16)GPIO_Number_17)
 #define C   ((Uint16)GPIO_Number_18)
@@ -22,22 +23,22 @@
 #define G2  ((Uint16)GPIO_Number_4)
 #define B2  ((Uint16)GPIO_Number_5)
 
-#define CLEAR_CLK (GpioDataRegs.GPACLEAR.bit.GPIO28 = 1) // J1-3 CLK
-#define CLEAR_OE  (GpioDataRegs.GPACLEAR.bit.GPIO29 = 1) // J1-4 OE
-#define CLEAR_LAT (GpioDataRegs.GPBCLEAR.bit.GPIO34 = 1) // J1-5 LAT // Pulled up via S1-1
-#define CLEAR_A   (GpioDataRegs.GPACLEAR.bit.GPIO16 = 1) // J6-7 A
-#define CLEAR_B   (GpioDataRegs.GPACLEAR.bit.GPIO17 = 1) // J6-8 B   // shared with GPIO33
-#define CLEAR_C   (GpioDataRegs.GPACLEAR.bit.GPIO18 = 1) // J1-7 C   // shared with GPIO32
-#define CLEAR_D   (GpioDataRegs.GPACLEAR.bit.GPIO19 = 1) // J2-2 D
-#define CLEAR_R1  (GpioDataRegs.GPACLEAR.bit.GPIO0 = 1)  // J6-1 R1
-#define CLEAR_G1  (GpioDataRegs.GPACLEAR.bit.GPIO1 = 1)  // J6-2 G1
-#define CLEAR_B1  (GpioDataRegs.GPACLEAR.bit.GPIO2 = 1)  // J6-3 B1
-#define CLEAR_R2  (GpioDataRegs.GPACLEAR.bit.GPIO3 = 1)  // J6-4 R2
-#define CLEAR_G2  (GpioDataRegs.GPACLEAR.bit.GPIO4 = 1)  // J6-5 G2
-#define CLEAR_B2  (GpioDataRegs.GPACLEAR.bit.GPIO5 = 1)  // J6-6 B2
+#define CLEAR_CLK (GpioDataRegs.GPACLEAR.bit.GPIO28 = 1) // J1-3
+#define CLEAR_OE  (GpioDataRegs.GPACLEAR.bit.GPIO29 = 1) // J1-4
+#define CLEAR_LAT (GpioDataRegs.GPACLEAR.bit.GPIO12 = 1) // J1-5 Pulled up via S1-1 is up - was 34 J1-5, go to 12 J2-3
+#define CLEAR_A   (GpioDataRegs.GPACLEAR.bit.GPIO16 = 1) // J6-7
+#define CLEAR_B   (GpioDataRegs.GPACLEAR.bit.GPIO17 = 1) // J6-8 Shared with GPIO33
+#define CLEAR_C   (GpioDataRegs.GPACLEAR.bit.GPIO18 = 1) // J1-7 Shared with GPIO32
+#define CLEAR_D   (GpioDataRegs.GPACLEAR.bit.GPIO19 = 1) // J2-2
+#define CLEAR_R1  (GpioDataRegs.GPACLEAR.bit.GPIO0 = 1)  // J6-1
+#define CLEAR_G1  (GpioDataRegs.GPACLEAR.bit.GPIO1 = 1)  // J6-2
+#define CLEAR_B1  (GpioDataRegs.GPACLEAR.bit.GPIO2 = 1)  // J6-3
+#define CLEAR_R2  (GpioDataRegs.GPACLEAR.bit.GPIO3 = 1)  // J6-4
+#define CLEAR_G2  (GpioDataRegs.GPACLEAR.bit.GPIO4 = 1)  // J6-5
+#define CLEAR_B2  (GpioDataRegs.GPACLEAR.bit.GPIO5 = 1)  // J6-6
 #define SET_CLK   (GpioDataRegs.GPASET.bit.GPIO28 = 1)
 #define SET_OE    (GpioDataRegs.GPASET.bit.GPIO29 = 1)
-#define SET_LAT   (GpioDataRegs.GPBSET.bit.GPIO34 = 1)
+#define SET_LAT   (GpioDataRegs.GPASET.bit.GPIO12 = 1)
 #define SET_A     (GpioDataRegs.GPASET.bit.GPIO16 = 1)
 #define SET_B     (GpioDataRegs.GPASET.bit.GPIO17 = 1)
 #define SET_C     (GpioDataRegs.GPASET.bit.GPIO18 = 1)
@@ -221,6 +222,7 @@ const Uint16 glyph_3_1[ROW_ADDRESSES] = {
     0b0000000000000000
 };
 
+#define _FLASH
 /**
  * main.c
  */
@@ -229,10 +231,8 @@ int main(void)
     // Think we need this to be able to run from flash, not during JTAG debugging
     Uint16 j = 0;
 
-#ifdef _FLASH
     memcpy(&RamfuncsRunStart, &RamfuncsLoadStart, (size_t)&RamfuncsLoadSize);
-#endif
-
+    InitPll(DSP28_PLLCR, DSP28_DIVSEL);
     initGPIO();
     initTimer();
 

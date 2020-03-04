@@ -31,6 +31,30 @@ The code is specific to drawing a small set of images in two colours. It would n
 ## TI
 Don't yet know how to flash the controller and boot to that code on powerup. Testing using the IDE right now.
 
+The launchpad has the following switches:
+- S1-1 - Up position pulls GPIO34 up, down pulls GPIO34 down. Needs to be up to run code on power up
+- S1-2 - Up position pulls TDO up, used for JTAG, needs to be up to run code on power up
+- S1-3 - Up position enables JTAG, this is needed for debugging, and flashing
+- S4   - Up position enables serial output (I think)
+
+I was using:
+- S1-1 - down
+- S1-2 - up
+- S1-3 - up
+- S4   - down
+
+Remapped LAT from GPIO34 to GPIO12 becuase 34 is used in boot mode selection. Now using:
+- S1-3 all up
+- S4 down
+
+Now the code runs when the board is powered, and it can be re-flashed in the IDE.
+
+Problem now is the code runs much more slowly when run from start up. When the board is flashed in the IDE, the code runs fine. Why is this?
+
+Guessing the issue is the code isn't being coppied into RAM on bootup, and being run from flash.
+
+Including InitPll in my code solved the issue. Asked about this here: https://e2e.ti.com/support/microcontrollers/c2000/f/171/p/885736/3275634
+
 ## Ghosting
 This issue was resolved by switching the order the clock output is toggled in. Data is read on the rising clock edge, so clock should end the loop low and be driven high after the data is set.
 
