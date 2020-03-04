@@ -1,13 +1,15 @@
 #include "Library/F2802x_Device.h"
 #include "Library/gpio.h"
 #include "Library/F2802x_Examples.h"
-#include "Library/clk.h"
 #include "Library/flash.h"
+#include "glyph.h"
+#include "Library/pie.h"
+#include "Library/timer.h"
 
-#define ROWS (32)
-#define ROW_ADDRESSES (ROWS / 2)
-#define WIDTH (64)
-#define ADDRESS_PORT_SHIFT (16)
+#define TIMER_PERIOD_1MS (50000) // 1ms interrupt to draw a line, 16 lines so 16ms per frame, 62.5fps
+#define WIDTH (64) // Display width in LEDs
+#define ADDRESS_PORT_SHIFT (16) // The address is set using 4 contiguous GPIO, this shifts the 4 bit address to this location
+#define I_MAX (16) // The number of display row addresses (each address maps to two rows, 1 and 17, 2 and 18 etc
 
 #define CLK ((Uint16)GPIO_Number_28)
 #define OE  ((Uint16)GPIO_Number_29)
@@ -22,7 +24,6 @@
 #define R2  ((Uint16)GPIO_Number_3)
 #define G2  ((Uint16)GPIO_Number_4)
 #define B2  ((Uint16)GPIO_Number_5)
-
 #define CLEAR_CLK (GpioDataRegs.GPACLEAR.bit.GPIO28 = 1) // J1-3
 #define CLEAR_OE  (GpioDataRegs.GPACLEAR.bit.GPIO29 = 1) // J1-4
 #define CLEAR_LAT (GpioDataRegs.GPACLEAR.bit.GPIO12 = 1) // J1-5 Pulled up via S1-1 is up - was 34 J1-5, go to 12 J2-3
@@ -49,311 +50,183 @@
 #define SET_R2    (GpioDataRegs.GPASET.bit.GPIO3 = 1)
 #define SET_G2    (GpioDataRegs.GPASET.bit.GPIO4 = 1)
 #define SET_B2    (GpioDataRegs.GPASET.bit.GPIO5 = 1)
-#define ABOUT_1S_OF_BIG_NUMBER ((Uint32)1000000) // count ~ 1us, 1s = 1,000,000 counts
-#define ABOUT_10MS_OF_BIG_NUMBER ((Uint32)10000) // count ~ 1us, 10ms = 10,000 counts
-#define ABOUT_1US_OF_BIG_NUMBER ((Uint32)1)      // count ~ 1us, 1us = 1 count
 
-void initTimer(void);
 void initGPIO(void);
 void setGpioAsOutput(Uint16 gpioNumber);
-void delayMicroseconds(Uint32 delayTime);
+interrupt void drawScanLine(void);
 
-GPIO_Handle myGpio;
-Uint32 i = 0;
-#define I_MAX (16)
+static GPIO_Handle myGpio; // initGPIO needs access to this
+static PIE_Handle myPie; // drawScanLine needs access to this
+static Uint32 i = 0;
 
-// 20:12 first char
-const Uint16 glyph_0_0[ROW_ADDRESSES] = {
-    0b0111000000000010,
-    0b0000111110000100,
-    0b0000000010001000,
-    0b0000000010000000,
-    0b0000000010000000,
-    0b0111111110000000,
-    0b0001000010000111,
-    0b0001000010000100,
-    0b0001000010000100,
-    0b0001000001000100,
-    0b0001000001000100,
-    0b0001000000100100,
-    0b0001000000000100,
-    0b0000000000011010,
-    0b0111111111100001,
-    0b0000000000000000
-};
-
-// 20:12 second char
-const Uint16 glyph_1_0[ROW_ADDRESSES] = {
-    0b0000000000000010,
-    0b0000000000000100,
-    0b0011111111101000,
-    0b0000001000000000,
-    0b0000001000000001,
-    0b0000001000000010,
-    0b0000001000000100,
-    0b0000001000000000,
-    0b0000001000000000,
-    0b0000001000000100,
-    0b0000001000000100,
-    0b0000001000000010,
-    0b0000001000000010,
-    0b0111111111110001,
-    0b0000000000000001,
-    0b0000000000000000
-};
-
-// 20:12 third char
-const Uint16 glyph_2_0[ROW_ADDRESSES] = {
-    0b0000000000000100,
-    0b0011111111111110,
-    0b0000100100100101,
-    0b0000100100100100,
-    0b0111111111111111,
-    0b0000100100100100,
-    0b0000100100100100,
-    0b0011111111111110,
-    0b0000100000001000,
-    0b0011111101111100,
-    0b0000100101000010,
-    0b0000100100100101,
-    0b0111111110011000,
-    0b0000100000001100,
-    0b0000100000000011,
-    0b0000000000000000
-};
-
-// 20:12 fourth char
-const Uint16 glyph_3_0[ROW_ADDRESSES] = {
-    0b0000000000000000,
-    0b0001111111111100,
-    0b0000100000000000,
-    0b0000011000000000,
-    0b0000000110000000,
-    0b0000000010000000,
-    0b0000000010000000,
-    0b0111111111111111,
-    0b0000000010000000,
-    0b0000000010000000,
-    0b0000000010000000,
-    0b0000000010000000,
-    0b0000000010000000,
-    0b0000000010000000,
-    0b0000000011100000,
-    0b0000000000000000
-};
-
-// 20:12 blank
-const Uint16 glyph_0_1[ROW_ADDRESSES] = {
-    0b0000000000000000,
-    0b0000000000000000,
-    0b0000000000000000,
-    0b0000000000000000,
-    0b0000000000000000,
-    0b0000000000000000,
-    0b0000000000000000,
-    0b0000000000000000,
-    0b0000000000000000,
-    0b0000000000000000,
-    0b0000000000000000,
-    0b0000000000000000,
-    0b0000000000000000,
-    0b0000000000000000,
-    0b0000000000000000,
-    0b0000000000000000
-};
-
-// 20:12 twenty
-const Uint16 glyph_1_1[ROW_ADDRESSES] = {
-    0b0000000000000000,
-    0b0000110000001100,
-    0b0001001000010010,
-    0b0010000100100001,
-    0b0010000100100001,
-    0b0010000100100000,
-    0b0010000100010000,
-    0b0010000100010000,
-    0b0010000100001000,
-    0b0010000100000100,
-    0b0010000100000100,
-    0b0010000100000010,
-    0b0001001000000001,
-    0b0000110000111111,
-    0b0000000000000000,
-    0b0000000000000000
-};
-
-// 20:12 colon
-const Uint16 glyph_2_1[ROW_ADDRESSES] = {
-    0b0000000000000000,
-    0b0000000000000000,
-    0b0000000000000000,
-    0b0000000000000000,
-    0b0000000000000000,
-    0b0000000011000000,
-    0b0000000011000000,
-    0b0000000000000000,
-    0b0000000000000000,
-    0b0000000000000000,
-    0b0000000000000000,
-    0b0000000011000000,
-    0b0000000011000000,
-    0b0000000000000000,
-    0b0000000000000000,
-    0b0000000000000000
-};
-
-// 20:12 twelve
-const Uint16 glyph_3_1[ROW_ADDRESSES] = {
-    0b0000000000000000,
-    0b0000110000001000,
-    0b0001001000001110,
-    0b0010000100001000,
-    0b0010000100001000,
-    0b0010000000001000,
-    0b0001000000001000,
-    0b0001000000001000,
-    0b0000100000001000,
-    0b0000010000001000,
-    0b0000010000001000,
-    0b0000001000001000,
-    0b0000000100001000,
-    0b0011111100001000,
-    0b0000000000000000,
-    0b0000000000000000
-};
-
-#define _FLASH
 /**
  * main.c
  */
 int main(void)
 {
-    // Think we need this to be able to run from flash, not during JTAG debugging
-    Uint16 j = 0;
+    TIMER_Handle myTimer = TIMER_init((void *)TIMER0_BASE_ADDR, sizeof(TIMER_Obj));
+    CPU_Handle myCpu = CPU_init((void *)NULL, sizeof(CPU_Obj));
+    myPie = PIE_init((void *)PIE_BASE_ADDR, sizeof(PIE_Obj));
 
-    memcpy(&RamfuncsRunStart, &RamfuncsLoadStart, (size_t)&RamfuncsLoadSize);
+    // Init on chip clock thing
     InitPll(DSP28_PLLCR, DSP28_DIVSEL);
+
+    // Disable the PIE and all interrupts
+    PIE_disable(myPie);
+    PIE_disableAllInts(myPie);
+    CPU_disableGlobalInts(myCpu);
+    CPU_clearIntFlags(myCpu);
+
+    // Copy ramfuncs to RAM
+    memcpy(&RamfuncsRunStart, &RamfuncsLoadStart, (size_t)&RamfuncsLoadSize);
+
+    // Set up interrupts
+    PIE_setDefaultIntVectorTable(myPie);
+    PIE_enable(myPie);
+    PIE_registerPieIntHandler(myPie, PIE_GroupNumber_1, PIE_SubGroupNumber_7, (intVec_t)&drawScanLine);
+
+    // Set up the interrupt timer. Example code said 500ms = 50 * 500000, I don't know how they work that out
+    TIMER_stop(myTimer);
+    TIMER_setPeriod(myTimer, TIMER_PERIOD_1MS);
+    TIMER_setPreScaler(myTimer, 0);
+    TIMER_reload(myTimer);
+    TIMER_setEmulationMode(myTimer, TIMER_EmulationMode_StopAfterNextDecrement);
+    TIMER_enableInt(myTimer);
+    TIMER_start(myTimer);
+
     initGPIO();
-    initTimer();
+
+    // Enable CPU INT1 which is connected to CPU-Timer 0:
+    CPU_enableInt(myCpu, CPU_IntNumber_1);
+
+    // Enable TINT0 in the PIE: Group 1 interrupt 7
+    PIE_enableTimer0Int(myPie);
+
+    // Enable global Interrupts and higher priority real-time debug events
+    CPU_enableGlobalInts(myCpu);
+    CPU_enableDebugInt(myCpu);
 
     for (;;) {
-        SET_OE;
-        SET_LAT;
 
-        GpioDataRegs.GPASET.all |= (i << ADDRESS_PORT_SHIFT);
-        GpioDataRegs.GPACLEAR.all |= ~(i << ADDRESS_PORT_SHIFT);
-
-        CLEAR_OE;
-        CLEAR_LAT;
-
-        i++;
-        if (i >= I_MAX)
-        {
-            i = 0;
-        }
-
-        for (j = 0; j < WIDTH; j++)
-        {
-            // First glyph
-            if (j < 16)
-            {
-                if (((glyph_0_0[i] >> j) & 0x01) == 0x01)
-                {
-                    SET_G1;
-                }
-                else
-                {
-                    CLEAR_G1;
-                }
-                if (((glyph_0_1[i] >> j) & 0x01) == 0x01)
-                {
-                    SET_R2;
-                }
-                else
-                {
-                    CLEAR_R2;
-                }
-            }
-
-            // Second glyphs
-            else if (j < 32)
-            {
-                if (((glyph_1_0[i] >> (j - 16)) & 0x01) == 0x01)
-                {
-                    SET_G1;
-                }
-                else
-                {
-                    CLEAR_G1;
-                }
-                if (((glyph_1_1[i] >> (j - 16)) & 0x01) == 0x01)
-                {
-                    SET_R2;
-                }
-                else
-                {
-                    CLEAR_R2;
-                }
-                if (((glyph_1_0[i] >> (j - 16)) & 0x01) == 0x01)
-                {
-                    SET_G1;
-                }
-                else
-                {
-                    CLEAR_G1;
-                }
-            }
-
-            // Third glyphs
-            else if (j < 48)
-            {
-                if (((glyph_2_0[i] >> (j - 32)) & 0x01) == 0x01)
-                {
-                    SET_G1;
-                }
-                else
-                {
-                    CLEAR_G1;
-                }
-                if (((glyph_2_1[i] >> (j - 32)) & 0x01) == 0x01)
-                {
-                    SET_R2;
-                }
-                else
-                {
-                    CLEAR_R2;
-                }
-            }
-            // Fourth glyphs
-            else if (j < 64)
-            {
-                if (((glyph_3_0[i] >> (j - 48)) & 0x01) == 0x01)
-                {
-                    SET_G1;
-                }
-                else
-                {
-                    CLEAR_G1;
-                }
-                if (((glyph_3_1[i] >> (j - 48)) & 0x01) == 0x01)
-                {
-                    SET_R2;
-                }
-                else
-                {
-                    CLEAR_R2;
-                }
-            }
-            SET_CLK;
-            CLEAR_CLK;
-        }
     }
 }
 
-void delayMicroseconds(Uint32 delayTimeUS)
+interrupt void drawScanLine(void)
 {
-    Uint32 startTime = CpuTimer1Regs.TIM.all;
-    while ((startTime - CpuTimer1Regs.TIM.all) < delayTimeUS) {};
+    Uint16 j = 0;
+    SET_OE;
+    SET_LAT;
+
+    GpioDataRegs.GPASET.all |= (i << ADDRESS_PORT_SHIFT);
+    GpioDataRegs.GPACLEAR.all |= ~(i << ADDRESS_PORT_SHIFT);
+
+    CLEAR_OE;
+    CLEAR_LAT;
+
+    i++;
+    if (i >= I_MAX)
+    {
+        i = 0;
+    }
+
+    for (j = 0; j < WIDTH; j++)
+    {
+        // First glyph
+        if (j < 16)
+        {
+            if (((glyph_0_0[i] >> j) & 0x01) == 0x01)
+            {
+                SET_G1;
+            }
+            else
+            {
+                CLEAR_G1;
+            }
+            if (((glyph_0_1[i] >> j) & 0x01) == 0x01)
+            {
+                SET_R2;
+            }
+            else
+            {
+                CLEAR_R2;
+            }
+        }
+
+        // Second glyphs
+        else if (j < 32)
+        {
+            if (((glyph_1_0[i] >> (j - 16)) & 0x01) == 0x01)
+            {
+                SET_G1;
+            }
+            else
+            {
+                CLEAR_G1;
+            }
+            if (((glyph_1_1[i] >> (j - 16)) & 0x01) == 0x01)
+            {
+                SET_R2;
+            }
+            else
+            {
+                CLEAR_R2;
+            }
+            if (((glyph_1_0[i] >> (j - 16)) & 0x01) == 0x01)
+            {
+                SET_G1;
+            }
+            else
+            {
+                CLEAR_G1;
+            }
+        }
+
+        // Third glyphs
+        else if (j < 48)
+        {
+            if (((glyph_2_0[i] >> (j - 32)) & 0x01) == 0x01)
+            {
+                SET_G1;
+            }
+            else
+            {
+                CLEAR_G1;
+            }
+            if (((glyph_2_1[i] >> (j - 32)) & 0x01) == 0x01)
+            {
+                SET_R2;
+            }
+            else
+            {
+                CLEAR_R2;
+            }
+        }
+        // Fourth glyphs
+        else if (j < 64)
+        {
+            if (((glyph_3_0[i] >> (j - 48)) & 0x01) == 0x01)
+            {
+                SET_G1;
+            }
+            else
+            {
+                CLEAR_G1;
+            }
+            if (((glyph_3_1[i] >> (j - 48)) & 0x01) == 0x01)
+            {
+                SET_R2;
+            }
+            else
+            {
+                CLEAR_R2;
+            }
+        }
+        SET_CLK;
+        CLEAR_CLK;
+    }
+
+    // Re-arm the interrupt
+    PIE_clearInt(myPie, PIE_GroupNumber_1);
 }
 
 void setGpioAsOutput(Uint16 gpioNumber)
@@ -392,20 +265,4 @@ void initGPIO(void)
     CLEAR_R2;
     CLEAR_G2;
     CLEAR_B2;
-}
-
-void initTimer(void)
-{
-    CpuTimer1Regs.TCR.bit.FREE = 1; // Free run mode
-    CpuTimer1Regs.TCR.bit.SOFT = 1;
-    CpuTimer1Regs.PRD.all = 0xFFFFFFFF; // Initialize CpuTimer1
-    CpuTimer1Regs.TPR.bit.TDDR = 0x3C; // 60MHz / 3C = 1us I think
-    CpuTimer1Regs.TPRH.bit.TDDRH = 0x00;
-    CpuTimer1Regs.TCR.bit.TSS = 1; // Stop CpuTimer1
-    CpuTimer1Regs.TCR.bit.TRB = 1; // Reload CpuTimer1 counter register
-    CpuTimer1.InterruptCount = 0; // Reset CpuTimer1 interrupt counter
-    CpuTimer1Regs.TCR.bit.TIF = 1; // Clear CpuTimer1 interrupt flag
-    CpuTimer1Regs.TCR.bit.TIE = 0; // Disable CpuTimer1 interrupt
-    CpuTimer1Regs.TIM.all = 0xFFFFFFFF;
-    CpuTimer1Regs.TCR.bit.TSS = 0; // Start CpuTimer1
 }
