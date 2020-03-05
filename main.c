@@ -6,24 +6,27 @@
 #include "Library/pie.h"
 #include "Library/timer.h"
 
-#define TIMER_PERIOD_1MS (50000) // 1ms interrupt to draw a line, 16 lines so 16ms per frame, 62.5fps
+//#define TIMER_PERIOD_1MS (50000) // 1ms interrupt to draw a line, 16 lines so 16ms per frame, 62.5fps
+//#define TIMER_PERIOD_1MS (12500) // 1ms interrupt to draw a line, 16 lines so 16ms per frame, 62.5fps - 4* faster for depth
+#define TIMER_PERIOD_1MS (5000) // 1ms interrupt to draw a line, 16 lines so 16ms per frame, 62.5fps - 4* faster for depth
 #define WIDTH (64) // Display width in LEDs
 #define ADDRESS_PORT_SHIFT (16) // The address is set using 4 contiguous GPIO, this shifts the 4 bit address to this location
 #define I_MAX (16) // The number of display row addresses (each address maps to two rows, 1 and 17, 2 and 18 etc
+#define DEPTH_MAX (3)
 
-#define CLK ((Uint16)GPIO_Number_28)
-#define OE  ((Uint16)GPIO_Number_29)
-#define LAT ((Uint16)GPIO_Number_12)
-#define A   ((Uint16)GPIO_Number_16)
-#define B   ((Uint16)GPIO_Number_17)
-#define C   ((Uint16)GPIO_Number_18)
-#define D   ((Uint16)GPIO_Number_19)
-#define R1  ((Uint16)GPIO_Number_0)
-#define G1  ((Uint16)GPIO_Number_1)
-#define B1  ((Uint16)GPIO_Number_2)
-#define R2  ((Uint16)GPIO_Number_3)
-#define G2  ((Uint16)GPIO_Number_4)
-#define B2  ((Uint16)GPIO_Number_5)
+#define PIN_CLK ((Uint16)GPIO_Number_28)
+#define PIN_OE  ((Uint16)GPIO_Number_29)
+#define PIN_LAT ((Uint16)GPIO_Number_12)
+#define PIN_A   ((Uint16)GPIO_Number_16)
+#define PIN_B   ((Uint16)GPIO_Number_17)
+#define PIN_C   ((Uint16)GPIO_Number_18)
+#define PIN_D   ((Uint16)GPIO_Number_19)
+#define PIN_R1  ((Uint16)GPIO_Number_0)
+#define PIN_G1  ((Uint16)GPIO_Number_1)
+#define PIN_B1  ((Uint16)GPIO_Number_2)
+#define PIN_R2  ((Uint16)GPIO_Number_3)
+#define PIN_G2  ((Uint16)GPIO_Number_4)
+#define PIN_B2  ((Uint16)GPIO_Number_5)
 #define CLEAR_CLK (GpioDataRegs.GPACLEAR.bit.GPIO28 = 1) // J1-3
 #define CLEAR_OE  (GpioDataRegs.GPACLEAR.bit.GPIO29 = 1) // J1-4
 #define CLEAR_LAT (GpioDataRegs.GPACLEAR.bit.GPIO12 = 1) // J1-5 Pulled up via S1-1 is up - was 34 J1-5, go to 12 J2-3
@@ -58,12 +61,18 @@ interrupt void drawScanLine(void);
 static GPIO_Handle myGpio; // initGPIO needs access to this
 static PIE_Handle myPie; // drawScanLine needs access to this
 static Uint32 i = 0;
+static Uint16 depth = 0;
 
 /**
  * main.c
  */
 int main(void)
 {
+    Uint16 recalculateBackBuffer = 1;
+    Uint16 swapBuffer = 0;
+    //Uint16 buffer1[1024]; // We'd need 3* this for the depth information
+    //Uint16 buffer2[1024];
+    //Uint16 (*buffer)[1024];
     TIMER_Handle myTimer = TIMER_init((void *)TIMER0_BASE_ADDR, sizeof(TIMER_Obj));
     CPU_Handle myCpu = CPU_init((void *)NULL, sizeof(CPU_Obj));
     myPie = PIE_init((void *)PIE_BASE_ADDR, sizeof(PIE_Obj));
@@ -107,7 +116,17 @@ int main(void)
     CPU_enableDebugInt(myCpu);
 
     for (;;) {
+        if (recalculateBackBuffer)
+        {
+            //buffer = &buffer1;
+            recalculateBackBuffer = 0;
+            swapBuffer = 1;
+        }
+        if (swapBuffer)
+        {
+            swapBuffer = 0;
 
+        }
     }
 }
 
@@ -127,100 +146,66 @@ interrupt void drawScanLine(void)
     if (i >= I_MAX)
     {
         i = 0;
+        depth++;
+        if (depth >= DEPTH_MAX)
+        {
+            depth = 0;
+        }
     }
 
     for (j = 0; j < WIDTH; j++)
     {
-        // First glyph
+        Uint16 colourPort = 0;
+        colour* upperGlyphColour = 0;
+        colour* lowerGlyphColour = 0;
+
+        // First glyphs
         if (j < 16)
         {
-            if (((glyph_0_0[i] >> j) & 0x01) == 0x01)
-            {
-                SET_G1;
-            }
-            else
-            {
-                CLEAR_G1;
-            }
-            if (((glyph_0_1[i] >> j) & 0x01) == 0x01)
-            {
-                SET_R2;
-            }
-            else
-            {
-                CLEAR_R2;
-            }
+            upperGlyphColour = &glyph_0_0_colour[ (glyph_0_0[i] >> (j * 2)) & 0x03 ];
+            lowerGlyphColour = &glyph_0_1_colour[ (glyph_0_1[i] >> (j * 2)) & 0x03 ];
         }
-
-        // Second glyphs
         else if (j < 32)
         {
-            if (((glyph_1_0[i] >> (j - 16)) & 0x01) == 0x01)
-            {
-                SET_G1;
-            }
-            else
-            {
-                CLEAR_G1;
-            }
-            if (((glyph_1_1[i] >> (j - 16)) & 0x01) == 0x01)
-            {
-                SET_R2;
-            }
-            else
-            {
-                CLEAR_R2;
-            }
-            if (((glyph_1_0[i] >> (j - 16)) & 0x01) == 0x01)
-            {
-                SET_G1;
-            }
-            else
-            {
-                CLEAR_G1;
-            }
+            upperGlyphColour = &glyph_1_0_colour[ (glyph_1_0[i] >> ((j - 16) * 2)) & 0x03 ];
+            lowerGlyphColour = &glyph_1_1_colour[ (glyph_1_1[i] >> ((j - 16) * 2)) & 0x03 ];
         }
-
-        // Third glyphs
         else if (j < 48)
         {
-            if (((glyph_2_0[i] >> (j - 32)) & 0x01) == 0x01)
-            {
-                SET_G1;
-            }
-            else
-            {
-                CLEAR_G1;
-            }
-            if (((glyph_2_1[i] >> (j - 32)) & 0x01) == 0x01)
-            {
-                SET_R2;
-            }
-            else
-            {
-                CLEAR_R2;
-            }
+            upperGlyphColour = &glyph_2_0_colour[ (glyph_2_0[i] >> ((j - 32) * 2)) & 0x03 ];
+            lowerGlyphColour = &glyph_2_1_colour[ (glyph_2_1[i] >> ((j - 32) * 2)) & 0x03 ];
         }
-        // Fourth glyphs
         else if (j < 64)
         {
-            if (((glyph_3_0[i] >> (j - 48)) & 0x01) == 0x01)
-            {
-                SET_G1;
-            }
-            else
-            {
-                CLEAR_G1;
-            }
-            if (((glyph_3_1[i] >> (j - 48)) & 0x01) == 0x01)
-            {
-                SET_R2;
-            }
-            else
-            {
-                CLEAR_R2;
-            }
+            upperGlyphColour = &glyph_3_0_colour[ (glyph_3_0[i] >> ((j - 48) * 2)) & 0x03 ];
+            lowerGlyphColour = &glyph_3_1_colour[ (glyph_3_1[i] >> ((j - 48) * 2)) & 0x03 ];
         }
+        if (upperGlyphColour->R > depth)
+        {
+            colourPort |= RED_1;
+        }
+        if (upperGlyphColour->G > depth)
+        {
+            colourPort |= GREEN_1;
+        }
+        if (upperGlyphColour->B > depth)
+        {
+            colourPort |= BLUE_1;
+        }
+        if (lowerGlyphColour->R > depth)
+        {
+            colourPort |= RED_2;
+        }
+        if (lowerGlyphColour->G > depth)
+        {
+            colourPort |= GREEN_2;
+        }
+        if (lowerGlyphColour->B > depth)
+        {
+            colourPort |= BLUE_2;
+        }
+        GpioDataRegs.GPASET.all |= colourPort;
+        GpioDataRegs.GPACLEAR.all |= ~colourPort;
         SET_CLK;
         CLEAR_CLK;
     }
@@ -239,19 +224,19 @@ void setGpioAsOutput(Uint16 gpioNumber)
 void initGPIO(void)
 {
     myGpio = GPIO_init((void *)GPIO_BASE_ADDR, sizeof(GPIO_Obj));
-    setGpioAsOutput(CLK);
-    setGpioAsOutput(OE);
-    setGpioAsOutput(LAT);
-    setGpioAsOutput(A);
-    setGpioAsOutput(B);
-    setGpioAsOutput(C);
-    setGpioAsOutput(D);
-    setGpioAsOutput(R1);
-    setGpioAsOutput(G1);
-    setGpioAsOutput(B1);
-    setGpioAsOutput(R2);
-    setGpioAsOutput(G2);
-    setGpioAsOutput(B2);
+    setGpioAsOutput(PIN_CLK);
+    setGpioAsOutput(PIN_OE);
+    setGpioAsOutput(PIN_LAT);
+    setGpioAsOutput(PIN_A);
+    setGpioAsOutput(PIN_B);
+    setGpioAsOutput(PIN_C);
+    setGpioAsOutput(PIN_D);
+    setGpioAsOutput(PIN_R1);
+    setGpioAsOutput(PIN_G1);
+    setGpioAsOutput(PIN_B1);
+    setGpioAsOutput(PIN_R2);
+    setGpioAsOutput(PIN_G2);
+    setGpioAsOutput(PIN_B2);
     CLEAR_CLK;
     SET_OE;
     CLEAR_LAT;
