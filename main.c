@@ -165,7 +165,7 @@ interrupt void drawScanLine(void)
         if (j > 48)
         {
             upperGlyphColour = &glyph_0_0_colour[ (glyph_0_0[i] >> ((j - 48) * 2)) & 0x03 ];
-            lowerGlyphColour = &glyph_0_1_colour[ (glyph_0_1[i] >> ((j - 48) * 2)) & 0x03 ];
+            lowerGlyphColour = &agumon_colour[ (agumon[i] >> ((j - 48) * 2)) & 0x03 ];
         }
         else if (j > 32)
         {
