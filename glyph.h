@@ -25,7 +25,20 @@ typedef struct {
     Uint16 G:2;
     Uint16 B:2;
     Uint16 unused:10;
-} colour;
+} Colour;
+
+typedef struct {
+    Uint16 x;
+    Uint16 y;
+    Uint16 width;
+    Uint16 height;
+} Dimensions;
+
+typedef struct {
+    Uint32 pixel[ROW_ADDRESSES];           // 64 bytes
+    Dimensions dimensions;                 //  8 bytes
+    Colour colour[SPRITE_UNIQUE_COLOURS];  //  8 bytes: total 80 bytes per sprite
+} Sprite;
 
 // top row first char
 const Uint32 glyph_0_0[ROW_ADDRESSES] = {
@@ -46,7 +59,7 @@ const Uint32 glyph_0_0[ROW_ADDRESSES] = {
     0b01000000000101010101010101010100,
     0b00000000000000000000000000000000
 };
-colour glyph_0_0_colour[SPRITE_UNIQUE_COLOURS] =
+Colour glyph_0_0_colour[SPRITE_UNIQUE_COLOURS] =
 { //     r     g     b
     { 0b00, 0b00, 0b00, 0 }, // b
     { 0b00, 0b11, 0b00, 0 }, // c1
@@ -73,7 +86,7 @@ const Uint32 glyph_1_0[ROW_ADDRESSES] = {
     0b01000000000000000000000000000000,
     0b00000000000000000000000000000000
 };
-colour glyph_1_0_colour[SPRITE_UNIQUE_COLOURS] =
+Colour glyph_1_0_colour[SPRITE_UNIQUE_COLOURS] =
 { //     r     g     b
     { 0b00, 0b00, 0b00, 0 }, // b
     { 0b00, 0b11, 0b00, 0 }, // c1
@@ -100,7 +113,7 @@ const Uint32 glyph_2_0[ROW_ADDRESSES] = {
     0b01010000000000000000000100000000,
     0b00000000000000000000000000000000
 };
-colour glyph_2_0_colour[SPRITE_UNIQUE_COLOURS] =
+Colour glyph_2_0_colour[SPRITE_UNIQUE_COLOURS] =
 { //     r     g     b
     { 0b00, 0b00, 0b00, 0 }, // b
     { 0b00, 0b11, 0b00, 0 }, // c1
@@ -127,7 +140,7 @@ const Uint32 glyph_3_0[ROW_ADDRESSES] = {
     0b00000000000101010000000000000000,
     0b00000000000000000000000000000000
 };
-colour glyph_3_0_colour[SPRITE_UNIQUE_COLOURS] =
+Colour glyph_3_0_colour[SPRITE_UNIQUE_COLOURS] =
 { //     r     g     b
     { 0b00, 0b00, 0b00, 0 }, // b
     { 0b00, 0b11, 0b00, 0 }, // c1
@@ -154,7 +167,7 @@ const Uint16 glyph_0_1[ROW_ADDRESSES] = {
     0b00000000000000000000000000000000,
     0b00000000000000000000000000000000
 };
-colour glyph_0_1_colour[SPRITE_UNIQUE_COLOURS] =
+Colour glyph_0_1_colour[SPRITE_UNIQUE_COLOURS] =
 { //     r     g     b
     { 0b11, 0b11, 0b11, 0 }, // b
     { 0b00, 0b00, 0b00, 0 }, // c1
@@ -181,7 +194,7 @@ const Uint32 glyph_1_1[ROW_ADDRESSES] = {
     0b00000000000000000000000000000000,
     0b00000000000000000000000000000000
 };
-colour glyph_1_1_colour[SPRITE_UNIQUE_COLOURS] =
+Colour glyph_1_1_colour[SPRITE_UNIQUE_COLOURS] =
 { //     r     g     b
     { 0b00, 0b00, 0b00, 0 }, // b
     { 0b11, 0b00, 0b00, 0 }, // c1
@@ -208,7 +221,7 @@ const Uint32 glyph_2_1[ROW_ADDRESSES] = {
     0b00000000000000000000000000000000,
     0b00000000000000000000000000000000
 };
-colour glyph_2_1_colour[SPRITE_UNIQUE_COLOURS] =
+Colour glyph_2_1_colour[SPRITE_UNIQUE_COLOURS] =
 { //     r     g     b
     { 0b00, 0b00, 0b00, 0}, // b
     { 0b11, 0b00, 0b00, 0}, // c1
@@ -235,7 +248,7 @@ const Uint32 glyph_3_1[ROW_ADDRESSES] = {
     0b00000000000000000000000000000000,
     0b00000000000000000000000000000000
 };
-colour glyph_3_1_colour[SPRITE_UNIQUE_COLOURS] =
+Colour glyph_3_1_colour[SPRITE_UNIQUE_COLOURS] =
 { //     r     g     b
     { 0b00, 0b00, 0b00, 0 }, // b
     { 0b11, 0b00, 0b00, 0 }, // c1
@@ -262,12 +275,36 @@ const Uint32 agumon[ROW_ADDRESSES] =
     0b01010101010101000101010101010100,
     0b00000000000000000000000000000000
 };
-colour agumon_colour[SPRITE_UNIQUE_COLOURS] =
+Colour agumon_colour[SPRITE_UNIQUE_COLOURS] =
 { //     r     g     b
     { 0b11, 0b11, 0b11, 0 }, // b
     { 0b00, 0b00, 0b00, 0 }, // c1
     { 0b11, 0b11, 0b00, 0 }, // c2
     { 0b00, 0b00, 0b00, 0 }  // c3
 };
+
+Sprite _agumon = { { 0b00000000000101010101010000000000,
+                     0b00000000011010101010100100000000,
+                     0b00010101101010100101101001000000,
+                     0b01101010101010101001011001000000,
+                     0b01101010101010100101011001000000,
+                     0b01101010100101101010101001000000,
+                     0b00010101011010101010101001000000,
+                     0b00011010101010010110100100000000,
+                     0b00000101010101100101100100000000,
+                     0b00011010011010011010101001000000,
+                     0b00010101011010010101011001000000,
+                     0b00000000010110101010011010010000,
+                     0b00000101101001010101101010010000,
+                     0b00011001101001100110011001100100,
+                     0b01010101010101000101010101010100,
+                     0b00000000000000000000000000000000 },
+                   { 24, 8, 16, 16 }, { //     r     g     b
+                   { 0b11, 0b11, 0b11, 0 }, // b
+                   { 0b00, 0b00, 0b00, 0 }, // c1
+                   { 0b11, 0b11, 0b00, 0 }, // c2
+                   { 0b00, 0b00, 0b00, 0 }  // c3
+                   } };
+
 
 #endif /* GLYPH_H_ */

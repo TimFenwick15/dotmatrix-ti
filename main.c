@@ -115,6 +115,31 @@ int main(void)
     CPU_enableGlobalInts(myCpu);
     CPU_enableDebugInt(myCpu);
 
+    /*Uint16 loopVar = 0;
+    for (loopVar = 0; loopVar < 32; loopVar++)
+        _agumon.pixel[loopVar] = agumon[loopVar];
+
+    _agumon.dimensions.x = 24;
+    _agumon.dimensions.y = 8;
+    _agumon.dimensions.width = 16;
+    _agumon.dimensions.height = 16;
+    _agumon.colour[0].R = 0b11;
+    _agumon.colour[0].G = 0b11;
+    _agumon.colour[0].B = 0b11;
+    _agumon.colour[0].unused = 0;
+    _agumon.colour[1].R = 0b00;
+    _agumon.colour[1].G = 0b00;
+    _agumon.colour[1].B = 0b00;
+    _agumon.colour[1].unused = 0;
+    _agumon.colour[2].R = 0b11;
+    _agumon.colour[2].G = 0b11;
+    _agumon.colour[2].B = 0b00;
+    _agumon.colour[2].unused = 0;
+    _agumon.colour[3].R = 0b00;
+    _agumon.colour[3].G = 0b00;
+    _agumon.colour[3].B = 0b00;
+    _agumon.colour[3].unused = 0;*/
+
     for (;;) {
         if (recalculateBackBuffer)
         {
@@ -158,8 +183,8 @@ interrupt void drawScanLine(void)
     for (j = WIDTH - 1; j >= 0; j--)
     {
         Uint16 colourPort = 0;
-        colour* upperGlyphColour = 0;
-        colour* lowerGlyphColour = 0;
+        Colour* upperGlyphColour = 0;
+        Colour* lowerGlyphColour = 0;
 
         // First glyphs
         if (j > 48)
@@ -181,6 +206,27 @@ interrupt void drawScanLine(void)
         {
             upperGlyphColour = &glyph_3_0_colour[ (glyph_3_0[i] >> (j * 2)) & 0x03 ];
             lowerGlyphColour = &glyph_3_1_colour[ (glyph_3_1[i] >> (j * 2)) & 0x03 ];
+        }
+
+        {
+            Uint16 x = j;
+            Uint16 y1 = i;
+            Uint16 y2 = y1 + 16;
+            if ((x >= _agumon.dimensions.x) && (x < (_agumon.dimensions.x + _agumon.dimensions.width)))
+            {
+                if ((y1 >= _agumon.dimensions.y) && (y1 < (_agumon.dimensions.y + _agumon.dimensions.height)))
+                {
+                    upperGlyphColour = &_agumon.colour[
+                        (_agumon.pixel[y1 - _agumon.dimensions.y] >> ((x - _agumon.dimensions.x) * 2)) & 0x03
+                    ];
+                }
+                if ((y2 >= _agumon.dimensions.y) && (y2 < (_agumon.dimensions.y + _agumon.dimensions.height)))
+                {
+                    lowerGlyphColour = &_agumon.colour[
+                        (_agumon.pixel[y2 - _agumon.dimensions.y] >> ((x - _agumon.dimensions.x) * 2)) & 0x03
+                    ];
+                }
+            }
         }
         if (upperGlyphColour->R > depth)
         {
