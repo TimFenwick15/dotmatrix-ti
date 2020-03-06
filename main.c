@@ -132,7 +132,7 @@ int main(void)
 
 interrupt void drawScanLine(void)
 {
-    Uint16 j = 0;
+    int16 j = 0;
     SET_OE;
     SET_LAT;
 
@@ -153,32 +153,34 @@ interrupt void drawScanLine(void)
         }
     }
 
-    for (j = 0; j < WIDTH; j++)
+    // The glyphs are drawn with the left most bit in the highest bit position.
+    // So we need to run this loop backwards so the glyph isn't reflected.
+    for (j = WIDTH - 1; j >= 0; j--)
     {
         Uint16 colourPort = 0;
         colour* upperGlyphColour = 0;
         colour* lowerGlyphColour = 0;
 
         // First glyphs
-        if (j < 16)
+        if (j > 48)
         {
-            upperGlyphColour = &glyph_0_0_colour[ (glyph_0_0[i] >> (j * 2)) & 0x03 ];
-            lowerGlyphColour = &glyph_0_1_colour[ (glyph_0_1[i] >> (j * 2)) & 0x03 ];
+            upperGlyphColour = &glyph_0_0_colour[ (glyph_0_0[i] >> ((j - 48) * 2)) & 0x03 ];
+            lowerGlyphColour = &glyph_0_1_colour[ (glyph_0_1[i] >> ((j - 48) * 2)) & 0x03 ];
         }
-        else if (j < 32)
+        else if (j > 32)
         {
-            upperGlyphColour = &glyph_1_0_colour[ (glyph_1_0[i] >> ((j - 16) * 2)) & 0x03 ];
-            lowerGlyphColour = &glyph_1_1_colour[ (glyph_1_1[i] >> ((j - 16) * 2)) & 0x03 ];
+            upperGlyphColour = &glyph_1_0_colour[ (glyph_1_0[i] >> ((j - 32) * 2)) & 0x03 ];
+            lowerGlyphColour = &glyph_1_1_colour[ (glyph_1_1[i] >> ((j - 32) * 2)) & 0x03 ];
         }
-        else if (j < 48)
+        else if (j > 16)
         {
-            upperGlyphColour = &glyph_2_0_colour[ (glyph_2_0[i] >> ((j - 32) * 2)) & 0x03 ];
-            lowerGlyphColour = &glyph_2_1_colour[ (glyph_2_1[i] >> ((j - 32) * 2)) & 0x03 ];
+            upperGlyphColour = &glyph_2_0_colour[ (glyph_2_0[i] >> ((j - 16) * 2)) & 0x03 ];
+            lowerGlyphColour = &glyph_2_1_colour[ (glyph_2_1[i] >> ((j - 16) * 2)) & 0x03 ];
         }
-        else if (j < 64)
+        else if (j >= 0)
         {
-            upperGlyphColour = &glyph_3_0_colour[ (glyph_3_0[i] >> ((j - 48) * 2)) & 0x03 ];
-            lowerGlyphColour = &glyph_3_1_colour[ (glyph_3_1[i] >> ((j - 48) * 2)) & 0x03 ];
+            upperGlyphColour = &glyph_3_0_colour[ (glyph_3_0[i] >> (j * 2)) & 0x03 ];
+            lowerGlyphColour = &glyph_3_1_colour[ (glyph_3_1[i] >> (j * 2)) & 0x03 ];
         }
         if (upperGlyphColour->R > depth)
         {
