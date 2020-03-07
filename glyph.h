@@ -40,7 +40,7 @@ typedef struct {
     Colour colour[SPRITE_UNIQUE_COLOURS];  //  8 bytes: total 80 bytes per sprite
 } Sprite;
 
-// top row first char
+// top row first char - Omi-Maiko Station
 Sprite glyph_0_0 = {
     {
         0b00010000000000000000000001010100,
@@ -236,7 +236,7 @@ Sprite glyph_3_1 = {
     { 48, 16, 16, 16 },
     { //     r     g     b
         { 0b00, 0b00, 0b00, 0 }, // b
-        { 0b11, 0b00, 0b00, 0 }, // c1
+        { 0b01, 0b00, 0b11, 0 }, // c1        { 0b11, 0b00, 0b00, 0 }, // c1
         { 0b00, 0b00, 0b00, 0 }, // c2
         { 0b00, 0b00, 0b00, 0 }  // c3
     }
@@ -291,9 +291,9 @@ Sprite _agumon = {
     },
     { 24, 8, 16, 16 },
     { //     r     g     b
-        { 0b11, 0b11, 0b11, 0 }, // b
+        { 0b11, 0b11, 0b11, 0 }, // b  0b00 - off,      0b01 - on 50%,       0b10 or 0b11 - on 100%
         { 0b00, 0b00, 0b00, 0 }, // c1
-        { 0b11, 0b11, 0b00, 0 }, // c2
+        { 0b11, 0b01, 0b01, 0 }, // c2        { 0b11, 0b11, 0b00, 0 }, // c2
         { 0b00, 0b00, 0b00, 0 }  // c3
     }
 };
