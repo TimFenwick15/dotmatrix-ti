@@ -63,6 +63,8 @@ static PIE_Handle myPie; // drawScanLine needs access to this
 static Uint32 i = 0;
 static Uint16 depth = 0;
 
+static Uint16 buffer[64 * 16];
+
 /**
  * main.c
  */
@@ -105,6 +107,205 @@ int main(void)
 
     initGPIO();
 
+    int16 x;
+    Uint16 y1, y2;
+    Uint16 d = 0;
+
+    //for (d = 0; d < DEPTH_MAX; d++)
+    //{
+        for (y1 = 0; y1 < I_MAX; y1++)
+        {
+            y2 = y1 + 16;
+            for (x = WIDTH - 1; x >= 0; x--)
+            {
+                Colour* upperGlyphColour = 0;
+                Colour* lowerGlyphColour = 0;
+                Uint16 colourPort = 0;
+
+                // Draw top row 1st character
+                if (((63 - x) >= glyph_0_0.dimensions.x) && ((63 - x) < (glyph_0_0.dimensions.x + glyph_0_0.dimensions.width)))
+                {
+                    if ((y1 >= glyph_0_0.dimensions.y) && (y1 < (glyph_0_0.dimensions.y + glyph_0_0.dimensions.height)))
+                    {
+                        upperGlyphColour = &glyph_0_0.colour[
+                            (glyph_0_0.pixel[y1 - glyph_0_0.dimensions.y] >> ((x - glyph_0_0.dimensions.x) * 2)) & 0x03
+                        ];
+                    }
+                    if ((y2 >= glyph_0_0.dimensions.y) && (y2 < (glyph_0_0.dimensions.y + glyph_0_0.dimensions.height)))
+                    {
+                        lowerGlyphColour = &glyph_0_0.colour[
+                            (glyph_0_0.pixel[y2 - glyph_0_0.dimensions.y] >> ((x - glyph_0_0.dimensions.x) * 2)) & 0x03
+                        ];
+                    }
+                }
+
+                // Draw top row 2nd character
+                if (((63 - x) >= glyph_1_0.dimensions.x) && ((63 - x) < (glyph_1_0.dimensions.x + glyph_1_0.dimensions.width)))
+                {
+                    if ((y1 >= glyph_1_0.dimensions.y) && (y1 < (glyph_1_0.dimensions.y + glyph_1_0.dimensions.height)))
+                    {
+                        upperGlyphColour = &glyph_1_0.colour[
+                            (glyph_1_0.pixel[y1 - glyph_1_0.dimensions.y] >> ((x - glyph_1_0.dimensions.x) * 2)) & 0x03
+                        ];
+                    }
+                    if ((y2 >= glyph_1_0.dimensions.y) && (y2 < (glyph_1_0.dimensions.y + glyph_1_0.dimensions.height)))
+                    {
+                        lowerGlyphColour = &glyph_1_0.colour[
+                            (glyph_1_0.pixel[y2 - glyph_1_0.dimensions.y] >> ((x - glyph_1_0.dimensions.x) * 2)) & 0x03
+                        ];
+                    }
+                }
+
+                // Draw top row 3rd character
+                if (((63 - x) >= glyph_2_0.dimensions.x) && ((63 - x) < (glyph_2_0.dimensions.x + glyph_2_0.dimensions.width)))
+                {
+                    if ((y1 >= glyph_2_0.dimensions.y) && (y1 < (glyph_2_0.dimensions.y + glyph_2_0.dimensions.height)))
+                    {
+                        upperGlyphColour = &glyph_2_0.colour[
+                            (glyph_2_0.pixel[y1 - glyph_2_0.dimensions.y] >> ((x - glyph_2_0.dimensions.x) * 2)) & 0x03
+                        ];
+                    }
+                    if ((y2 >= glyph_2_0.dimensions.y) && (y2 < (glyph_2_0.dimensions.y + glyph_2_0.dimensions.height)))
+                    {
+                        lowerGlyphColour = &glyph_2_0.colour[
+                            (glyph_2_0.pixel[y2 - glyph_2_0.dimensions.y] >> ((x - glyph_2_0.dimensions.x) * 2)) & 0x03
+                        ];
+                    }
+                }
+
+                // Draw top row 4th character
+                if (((63 - x) >= glyph_3_0.dimensions.x) && ((63 - x) < (glyph_3_0.dimensions.x + glyph_3_0.dimensions.width)))
+                {
+                    if ((y1 >= glyph_3_0.dimensions.y) && (y1 < (glyph_3_0.dimensions.y + glyph_3_0.dimensions.height)))
+                    {
+                        upperGlyphColour = &glyph_3_0.colour[
+                            (glyph_3_0.pixel[y1 - glyph_3_0.dimensions.y] >> ((x - glyph_3_0.dimensions.x) * 2)) & 0x03
+                        ];
+                    }
+                    if ((y2 >= glyph_3_0.dimensions.y) && (y2 < (glyph_3_0.dimensions.y + glyph_3_0.dimensions.height)))
+                    {
+                        lowerGlyphColour = &glyph_3_0.colour[
+                            (glyph_3_0.pixel[y2 - glyph_3_0.dimensions.y] >> ((x - glyph_3_0.dimensions.x) * 2)) & 0x03
+                        ];
+                    }
+                }
+
+                // Draw 20
+                if (((63 - x) >= glyph_1_1.dimensions.x) && ((63 - x) < (glyph_1_1.dimensions.x + glyph_1_1.dimensions.width)))
+                {
+                    if ((y1 >= glyph_1_1.dimensions.y) && (y1 < (glyph_1_1.dimensions.y + glyph_1_1.dimensions.height)))
+                    {
+                        upperGlyphColour = &glyph_1_1.colour[
+                            (glyph_1_1.pixel[y1 - glyph_1_1.dimensions.y] >> ((x - glyph_1_1.dimensions.x) * 2)) & 0x03
+                        ];
+                    }
+                    if ((y2 >= glyph_1_1.dimensions.y) && (y2 < (glyph_1_1.dimensions.y + glyph_1_1.dimensions.height)))
+                    {
+                        lowerGlyphColour = &glyph_1_1.colour[
+                            (glyph_1_1.pixel[y2 - glyph_1_1.dimensions.y] >> ((x - glyph_1_1.dimensions.x) * 2)) & 0x03
+                        ];
+                    }
+                }
+
+                // Draw colon
+                if (((63 - x) >= glyph_2_1.dimensions.x) && ((63 - x) < (glyph_2_1.dimensions.x + glyph_2_1.dimensions.width)))
+                {
+                    if ((y1 >= glyph_2_1.dimensions.y) && (y1 < (glyph_2_1.dimensions.y + glyph_2_1.dimensions.height)))
+                    {
+                        upperGlyphColour = &glyph_2_1.colour[
+                            (glyph_2_1.pixel[y1 - glyph_2_1.dimensions.y] >> ((x - glyph_2_1.dimensions.x) * 2)) & 0x03
+                        ];
+                    }
+                    if ((y2 >= glyph_2_1.dimensions.y) && (y2 < (glyph_2_1.dimensions.y + glyph_2_1.dimensions.height)))
+                    {
+                        lowerGlyphColour = &glyph_2_1.colour[
+                            (glyph_2_1.pixel[y2 - glyph_2_1.dimensions.y] >> ((x - glyph_2_1.dimensions.x) * 2)) & 0x03
+                        ];
+                    }
+                }
+
+                // Draw 12
+                if (((63 - x) >= glyph_3_1.dimensions.x) && ((63 - x) < (glyph_3_1.dimensions.x + glyph_3_1.dimensions.width)))
+                {
+                    if ((y1 >= glyph_3_1.dimensions.y) && (y1 < (glyph_3_1.dimensions.y + glyph_3_1.dimensions.height)))
+                    {
+                        upperGlyphColour = &glyph_3_1.colour[
+                            (glyph_3_1.pixel[y1 - glyph_3_1.dimensions.y] >> ((x - glyph_3_1.dimensions.x) * 2)) & 0x03
+                        ];
+                    }
+                    if ((y2 >= glyph_3_1.dimensions.y) && (y2 < (glyph_3_1.dimensions.y + glyph_3_1.dimensions.height)))
+                    {
+                        lowerGlyphColour = &glyph_3_1.colour[
+                            (glyph_3_1.pixel[y2 - glyph_3_1.dimensions.y] >> ((x - glyph_3_1.dimensions.x) * 2)) & 0x03
+                        ];
+                    }
+                }
+
+                // Draw agumon
+                if (((63 - x) >= agumon.dimensions.x) && ((63 - x) < (agumon.dimensions.x + agumon.dimensions.width)))
+                {
+                    if ((y1 >= agumon.dimensions.y) && (y1 < (agumon.dimensions.y + agumon.dimensions.height)))
+                    {
+                        upperGlyphColour = &agumon.colour[
+                            (agumon.pixel[y1 - agumon.dimensions.y] >> ((x - agumon.dimensions.x) * 2)) & 0x03
+                        ];
+                    }
+                    if ((y2 >= agumon.dimensions.y) && (y2 < (agumon.dimensions.y + agumon.dimensions.height)))
+                    {
+                        lowerGlyphColour = &agumon.colour[
+                            (agumon.pixel[y2 - agumon.dimensions.y] >> ((x - agumon.dimensions.x) * 2)) & 0x03
+                        ];
+                    }
+                }
+
+                // Draw _agumon
+                if (((63 - x) >= _agumon.dimensions.x) && ((63 - x) < (_agumon.dimensions.x + _agumon.dimensions.width)))
+                {
+                    if ((y1 >= _agumon.dimensions.y) && (y1 < (_agumon.dimensions.y + _agumon.dimensions.height)))
+                    {
+                        upperGlyphColour = &_agumon.colour[
+                            (_agumon.pixel[y1 - _agumon.dimensions.y] >> ((x - _agumon.dimensions.x) * 2)) & 0x03
+                        ];
+                    }
+                    if ((y2 >= _agumon.dimensions.y) && (y2 < (_agumon.dimensions.y + _agumon.dimensions.height)))
+                    {
+                        lowerGlyphColour = &_agumon.colour[
+                            (_agumon.pixel[y2 - _agumon.dimensions.y] >> ((x - _agumon.dimensions.x) * 2)) & 0x03
+                        ];
+                    }
+                }
+
+                if (upperGlyphColour->R > d)
+                {
+                    colourPort |= RED_1;
+                }
+                if (upperGlyphColour->G > d)
+                {
+                    colourPort |= GREEN_1;
+                }
+                if (upperGlyphColour->B > d)
+                {
+                    colourPort |= BLUE_1;
+                }
+                if (lowerGlyphColour->R > d)
+                {
+                    colourPort |= RED_2;
+                }
+                if (lowerGlyphColour->G > d)
+                {
+                    colourPort |= GREEN_2;
+                }
+                if (lowerGlyphColour->B > d)
+                {
+                    colourPort |= BLUE_2;
+                }
+                buffer[63 - x + y1 * 64] = colourPort;
+            }
+        }
+    //}
+
+    // We need a way to draw after interrupts are enabled. This requires a front and back buffer
+
     // Enable CPU INT1 which is connected to CPU-Timer 0:
     CPU_enableInt(myCpu, CPU_IntNumber_1);
 
@@ -114,31 +315,6 @@ int main(void)
     // Enable global Interrupts and higher priority real-time debug events
     CPU_enableGlobalInts(myCpu);
     CPU_enableDebugInt(myCpu);
-
-    /*Uint16 loopVar = 0;
-    for (loopVar = 0; loopVar < 32; loopVar++)
-        _agumon.pixel[loopVar] = agumon[loopVar];
-
-    _agumon.dimensions.x = 24;
-    _agumon.dimensions.y = 8;
-    _agumon.dimensions.width = 16;
-    _agumon.dimensions.height = 16;
-    _agumon.colour[0].R = 0b11;
-    _agumon.colour[0].G = 0b11;
-    _agumon.colour[0].B = 0b11;
-    _agumon.colour[0].unused = 0;
-    _agumon.colour[1].R = 0b00;
-    _agumon.colour[1].G = 0b00;
-    _agumon.colour[1].B = 0b00;
-    _agumon.colour[1].unused = 0;
-    _agumon.colour[2].R = 0b11;
-    _agumon.colour[2].G = 0b11;
-    _agumon.colour[2].B = 0b00;
-    _agumon.colour[2].unused = 0;
-    _agumon.colour[3].R = 0b00;
-    _agumon.colour[3].G = 0b00;
-    _agumon.colour[3].B = 0b00;
-    _agumon.colour[3].unused = 0;*/
 
     for (;;) {
         if (recalculateBackBuffer)
@@ -183,77 +359,9 @@ interrupt void drawScanLine(void)
     for (j = WIDTH - 1; j >= 0; j--)
     {
         Uint16 colourPort = 0;
-        Colour* upperGlyphColour = 0;
-        Colour* lowerGlyphColour = 0;
-
-        // First glyphs
-        if (j > 48)
-        {
-            upperGlyphColour = &glyph_0_0_colour[ (glyph_0_0[i] >> ((j - 48) * 2)) & 0x03 ];
-            lowerGlyphColour = &agumon_colour[ (agumon[i] >> ((j - 48) * 2)) & 0x03 ];
-        }
-        else if (j > 32)
-        {
-            upperGlyphColour = &glyph_1_0_colour[ (glyph_1_0[i] >> ((j - 32) * 2)) & 0x03 ];
-            lowerGlyphColour = &glyph_1_1_colour[ (glyph_1_1[i] >> ((j - 32) * 2)) & 0x03 ];
-        }
-        else if (j > 16)
-        {
-            upperGlyphColour = &glyph_2_0_colour[ (glyph_2_0[i] >> ((j - 16) * 2)) & 0x03 ];
-            lowerGlyphColour = &glyph_2_1_colour[ (glyph_2_1[i] >> ((j - 16) * 2)) & 0x03 ];
-        }
-        else if (j >= 0)
-        {
-            upperGlyphColour = &glyph_3_0_colour[ (glyph_3_0[i] >> (j * 2)) & 0x03 ];
-            lowerGlyphColour = &glyph_3_1_colour[ (glyph_3_1[i] >> (j * 2)) & 0x03 ];
-        }
-
-        {
-            Uint16 x = j;
-            Uint16 y1 = i;
-            Uint16 y2 = y1 + 16;
-            if ((x >= _agumon.dimensions.x) && (x < (_agumon.dimensions.x + _agumon.dimensions.width)))
-            {
-                if ((y1 >= _agumon.dimensions.y) && (y1 < (_agumon.dimensions.y + _agumon.dimensions.height)))
-                {
-                    upperGlyphColour = &_agumon.colour[
-                        (_agumon.pixel[y1 - _agumon.dimensions.y] >> ((x - _agumon.dimensions.x) * 2)) & 0x03
-                    ];
-                }
-                if ((y2 >= _agumon.dimensions.y) && (y2 < (_agumon.dimensions.y + _agumon.dimensions.height)))
-                {
-                    lowerGlyphColour = &_agumon.colour[
-                        (_agumon.pixel[y2 - _agumon.dimensions.y] >> ((x - _agumon.dimensions.x) * 2)) & 0x03
-                    ];
-                }
-            }
-        }
-        if (upperGlyphColour->R > depth)
-        {
-            colourPort |= RED_1;
-        }
-        if (upperGlyphColour->G > depth)
-        {
-            colourPort |= GREEN_1;
-        }
-        if (upperGlyphColour->B > depth)
-        {
-            colourPort |= BLUE_1;
-        }
-        if (lowerGlyphColour->R > depth)
-        {
-            colourPort |= RED_2;
-        }
-        if (lowerGlyphColour->G > depth)
-        {
-            colourPort |= GREEN_2;
-        }
-        if (lowerGlyphColour->B > depth)
-        {
-            colourPort |= BLUE_2;
-        }
+        colourPort = (buffer[63 - j + i * 64]) & 0x3F;
         GpioDataRegs.GPASET.all |= colourPort;
-        GpioDataRegs.GPACLEAR.all |= ~colourPort;
+        GpioDataRegs.GPACLEAR.all |= (~colourPort) & 0x3F; // I don't know how this was working before... It should have cleared its address
         SET_CLK;
         CLEAR_CLK;
     }
