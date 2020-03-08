@@ -221,18 +221,20 @@ void writeBuffer(void)
     {
         for (y1 = 0; y1 < I_MAX; y1++)
         {
-            y2 = y1 + 16;
             for (x = WIDTH - 1; x >= 0; x--)
             {
                 Colour* upperGlyphColour = 0;
                 Colour* lowerGlyphColour = 0;
+                Uint16 drawUpperPixel = 0;
+                Uint16 drawLowerPixel = 0;
                 Uint16 colourPort = 0;
                 Uint16 index = 63 - x + y1 * 64;
                 Uint16 shift = (index % 2) == 0 ? SHIFT_TO_LOWER_DATA : SHIFT_TO_UPPER_DATA;
                 index /= 2;
+                y2 = y1 + 16;
 
                 // Draw top row 1st character
-                if (((63 - x) >= glyph_0_0.dimensions.x) && ((63 - x) < (glyph_0_0.dimensions.x + glyph_0_0.dimensions.width)))
+                /*if (((63 - x) >= glyph_0_0.dimensions.x) && ((63 - x) < (glyph_0_0.dimensions.x + glyph_0_0.dimensions.width)))
                 {
                     if ((y1 >= glyph_0_0.dimensions.y) && (y1 < (glyph_0_0.dimensions.y + glyph_0_0.dimensions.height)))
                     {
@@ -348,7 +350,7 @@ void writeBuffer(void)
                             (glyph_3_1.pixel[y2 - glyph_3_1.dimensions.y] >> ((x - glyph_3_1.dimensions.x) * 2)) & 0x03
                         ];
                     }
-                }
+                }*/
 
                 // Draw agumon
                 if (((63 - x) >= agumon.dimensions.x) && ((63 - x) < (agumon.dimensions.x + agumon.dimensions.width)))
@@ -358,12 +360,14 @@ void writeBuffer(void)
                         upperGlyphColour = &agumon.colour[
                             (agumon.pixel[y1 - agumon.dimensions.y] >> ((x - agumon.dimensions.x) * 2)) & 0x03
                         ];
+                        drawUpperPixel = 1;
                     }
                     if ((y2 >= agumon.dimensions.y) && (y2 < (agumon.dimensions.y + agumon.dimensions.height)))
                     {
                         lowerGlyphColour = &agumon.colour[
                             (agumon.pixel[y2 - agumon.dimensions.y] >> ((x - agumon.dimensions.x) * 2)) & 0x03
                         ];
+                        drawLowerPixel = 1;
                     }
                 }
 
@@ -375,38 +379,114 @@ void writeBuffer(void)
                         upperGlyphColour = &_agumon.colour[
                             (_agumon.pixel[y1 - _agumon.dimensions.y] >> ((x - _agumon.dimensions.x) * 2)) & 0x03
                         ];
+                        drawUpperPixel = 1;
                     }
                     if ((y2 >= _agumon.dimensions.y) && (y2 < (_agumon.dimensions.y + _agumon.dimensions.height)))
                     {
                         lowerGlyphColour = &_agumon.colour[
                             (_agumon.pixel[y2 - _agumon.dimensions.y] >> ((x - _agumon.dimensions.x) * 2)) & 0x03
                         ];
+                        drawLowerPixel = 1;
                     }
                 }
 
-                if (upperGlyphColour->R > d)
+                // Draw Biyomon lower layer
+                if (((63 - x) >= biyomonLower.dimensions.x) && ((63 - x) < (biyomonLower.dimensions.x + biyomonLower.dimensions.width)))
                 {
-                    colourPort |= RED_1;
+                    if ((y1 >= biyomonLower.dimensions.y) && (y1 < (biyomonLower.dimensions.y + biyomonLower.dimensions.height)))
+                    {
+                        if ((0 == drawUpperPixel) || (0 == biyomonLower.transparency))
+                        {
+                            upperGlyphColour = &biyomonLower.colour[
+                                (biyomonLower.pixel[y1 - biyomonLower.dimensions.y] >> ((x - biyomonLower.dimensions.x) * 2)) & 0x03
+                            ];
+                            drawUpperPixel = 1;
+                        }
+                    }
+                    if ((y2 >= biyomonLower.dimensions.y) && (y2 < (biyomonLower.dimensions.y + biyomonLower.dimensions.height)))
+                    {
+                        if ((0 == drawLowerPixel) || (0 == biyomonLower.transparency))
+                        {
+                            lowerGlyphColour = &biyomonLower.colour[
+                                (biyomonLower.pixel[y2 - biyomonLower.dimensions.y] >> ((x - biyomonLower.dimensions.x) * 2)) & 0x03
+                            ];
+                            drawLowerPixel = 1;
+                        }
+                    }
                 }
-                if (upperGlyphColour->G > d)
+
+                // Draw Biyomon upper layer
+                if (((63 - x) >= biyomonUpper.dimensions.x) && ((63 - x) < (biyomonUpper.dimensions.x + biyomonUpper.dimensions.width)))
                 {
-                    colourPort |= GREEN_1;
+                    if ((y1 >= biyomonUpper.dimensions.y) && (y1 < (biyomonUpper.dimensions.y + biyomonUpper.dimensions.height)))
+                    {
+                        if (
+                            (0 == biyomonUpper.colour[(biyomonUpper.pixel[y1 - biyomonUpper.dimensions.y] >> ((x - biyomonUpper.dimensions.x) * 2)) & 0x03].R) &&
+                            (0 == biyomonUpper.colour[(biyomonUpper.pixel[y1 - biyomonUpper.dimensions.y] >> ((x - biyomonUpper.dimensions.x) * 2)) & 0x03].G) &&
+                            (0 == biyomonUpper.colour[(biyomonUpper.pixel[y1 - biyomonUpper.dimensions.y] >> ((x - biyomonUpper.dimensions.x) * 2)) & 0x03].B) &&
+                            (1 == biyomonUpper.transparency)
+                        )
+                        {
+                            // Do not draw, this is a transparent pixel
+                        }
+                        else
+                        {
+                            upperGlyphColour = &biyomonUpper.colour[
+                                (biyomonUpper.pixel[y1 - biyomonUpper.dimensions.y] >> ((x - biyomonUpper.dimensions.x) * 2)) & 0x03
+                            ];
+                            drawUpperPixel = 1;
+                        }
+                    }
+                    if ((y2 >= biyomonUpper.dimensions.y) && (y2 < (biyomonUpper.dimensions.y + biyomonUpper.dimensions.height)))
+                    {
+                        if (
+                            (0 == biyomonUpper.colour[(biyomonUpper.pixel[y2 - biyomonUpper.dimensions.y] >> ((x - biyomonUpper.dimensions.x) * 2)) & 0x03].R) &&
+                            (0 == biyomonUpper.colour[(biyomonUpper.pixel[y2 - biyomonUpper.dimensions.y] >> ((x - biyomonUpper.dimensions.x) * 2)) & 0x03].G) &&
+                            (0 == biyomonUpper.colour[(biyomonUpper.pixel[y2 - biyomonUpper.dimensions.y] >> ((x - biyomonUpper.dimensions.x) * 2)) & 0x03].B) &&
+                            (1 == biyomonUpper.transparency)
+                        )
+                        {
+                            // Do not draw, this is a transparent pixel
+                        }
+                        else
+                        {
+                            lowerGlyphColour = &biyomonUpper.colour[
+                                (biyomonUpper.pixel[y2 - biyomonUpper.dimensions.y] >> ((x - biyomonUpper.dimensions.x) * 2)) & 0x03
+                            ];
+                            drawLowerPixel = 1;
+                        }
+                    }
                 }
-                if (upperGlyphColour->B > d)
+
+                if (1 == drawUpperPixel)
                 {
-                    colourPort |= BLUE_1;
+                    if (upperGlyphColour->R > d)
+                    {
+                        colourPort |= RED_1;
+                    }
+                    if (upperGlyphColour->G > d)
+                    {
+                        colourPort |= GREEN_1;
+                    }
+                    if (upperGlyphColour->B > d)
+                    {
+                        colourPort |= BLUE_1;
+                    }
                 }
-                if (lowerGlyphColour->R > d)
+                if (1 == drawLowerPixel)
                 {
-                    colourPort |= RED_2;
-                }
-                if (lowerGlyphColour->G > d)
-                {
-                    colourPort |= GREEN_2;
-                }
-                if (lowerGlyphColour->B > d)
-                {
-                    colourPort |= BLUE_2;
+                    if (lowerGlyphColour->R > d)
+                    {
+                        colourPort |= RED_2;
+                    }
+                    if (lowerGlyphColour->G > d)
+                    {
+                        colourPort |= GREEN_2;
+                    }
+                    if (lowerGlyphColour->B > d)
+                    {
+                        colourPort |= BLUE_2;
+                    }
                 }
                 if (SHIFT_TO_LOWER_DATA == shift)
                 {
