@@ -77,7 +77,8 @@ static Uint16 buffer[DEPTH_MAX][WIDTH * ROW_ADDRESS_MAX / 2]; // The draw buffer
 static Uint32 drawTimes[10];
 static Uint16 writeTimesStored = 0;
 static Uint16 drawTimesStored = 0;*/
-
+#define RED_FRAME_MAX (4)
+static Uint16 redFrame = 0;
 /**
  * main.c
  */
@@ -155,11 +156,14 @@ int main(void)
         if ((initTime - CpuTimer1Regs.TIM.all) > (ABOUT_200MS_OF_BIG_NUMBER))
         {
             initTime = CpuTimer1Regs.TIM.all;
-            if (red_front_still.dimensions.y > 0)
+            redFrame++;
+            if (redFrame >= RED_FRAME_MAX)
             {
-                red_front_still.dimensions.y -= 1;
-                recalculateBuffer = 1;
+                redFrame = 0;
             }
+            memcpy(red_front_still.pixel, redFrames[redFrame], sizeof(red_front_still.pixel));
+
+            recalculateBuffer = 1;
         }
 
         if (recalculateBuffer)
