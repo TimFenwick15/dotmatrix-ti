@@ -20,6 +20,7 @@
 #define SHIFT_TO_UPPER_DATA (8)    // Shift to extract upper pixel data from the buffer
 #define ABOUT_500MS_OF_BIG_NUMBER ((Uint32)1000 * (Uint32)500)
 #define ABOUT_200MS_OF_BIG_NUMBER ((Uint32)1000 * (Uint32)200)
+#define ABOUT_20S_OF_BIG_NUMBER   ((Uint32)1000 * (Uint32)20000)
 
 #define PIN_CLK ((Uint16)GPIO_Number_28)
 #define PIN_OE  ((Uint16)GPIO_Number_29)
@@ -61,6 +62,13 @@
 #define SET_G2    (GpioDataRegs.GPASET.bit.GPIO4 = 1)
 #define SET_B2    (GpioDataRegs.GPASET.bit.GPIO5 = 1)
 
+typedef enum {
+    eRed,
+    eDigimon,
+    eFranxx,
+    eSceneMax
+} eScene;
+
 void initGPIO(void);
 void setGpioAsOutput(Uint16 gpioNumber);
 void writeBuffer(Uint16 d);
@@ -79,12 +87,13 @@ static Uint16 writeTimesStored = 0;
 static Uint16 drawTimesStored = 0;*/
 #define RED_FRAME_MAX (4)
 static Uint16 redFrame = 0;
+static eScene scene = eRed;
 /**
  * main.c
  */
 int main(void)
 {
-    Uint32 initTime;
+    Uint32 initTime, animationTime;
     Uint16 loopVar;
     Uint16 recalculateBuffer = 0;
 
@@ -122,7 +131,6 @@ int main(void)
     PIE_enable(myPie);
     PIE_registerPieIntHandler(myPie, PIE_GroupNumber_1, PIE_SubGroupNumber_7, (intVec_t)&drawScanLine);
 
-
     TIMER_stop(myTimer);
     TIMER_setPeriod(myTimer, TIMER_PERIOD_350US);
     TIMER_setPreScaler(myTimer, 0);
@@ -150,20 +158,34 @@ int main(void)
     CPU_enableDebugInt(myCpu);
 
     initTime = CpuTimer1Regs.TIM.all;
+    animationTime = CpuTimer1Regs.TIM.all;
 
     for (;;)
     {
-        if ((initTime - CpuTimer1Regs.TIM.all) > (ABOUT_200MS_OF_BIG_NUMBER))
+        if ((initTime - CpuTimer1Regs.TIM.all) > (ABOUT_20S_OF_BIG_NUMBER))
         {
             initTime = CpuTimer1Regs.TIM.all;
-            redFrame++;
-            if (redFrame >= RED_FRAME_MAX)
+            scene++;
+            if (scene >= eSceneMax)
             {
-                redFrame = 0;
+                scene = (eScene) 0;
             }
-            memcpy(red_front_still.pixel, redFrames[redFrame], sizeof(red_front_still.pixel));
-
             recalculateBuffer = 1;
+        }
+
+        if (eRed == scene)
+        {
+            if ((animationTime - CpuTimer1Regs.TIM.all) > (ABOUT_200MS_OF_BIG_NUMBER))
+            {
+                animationTime = CpuTimer1Regs.TIM.all;
+                redFrame++;
+                if (redFrame >= RED_FRAME_MAX)
+                {
+                    redFrame = 0;
+                }
+                memcpy(red_front_still.pixel, redFrames[redFrame], sizeof(red_front_still.pixel));
+                recalculateBuffer = 1;
+            }
         }
 
         if (recalculateBuffer)
@@ -287,59 +309,509 @@ void writeBuffer(Uint16 d)
     {
         for (column = 0; column < 16; column++) // this draws the sprite backwards. Solve this later
         {
-            colour = &red_front_still.colour[(red_front_still.pixel[row] >> (column * 2)) & 0x03];
-            if (
-                (0 == colour->R) &&
-                (0 == colour->G) &&
-                (0 == colour->B) &&
-                (1 == red_front_still.transparency)
-            )
+            switch (scene)
             {
-                // Do not draw, this is a transparent pixel
-            }
-            else
-            {
-                colourPort = 0;
-                if ((red_front_still.dimensions.y + row) < 16)
+            case eRed:
+                colour = &red_front_still.colour[(red_front_still.pixel[row] >> (30 - column * 2)) & 0x03];
+                if (
+                    (0 == colour->R) &&
+                    (0 == colour->G) &&
+                    (0 == colour->B) &&
+                    (1 == red_front_still.transparency)
+                )
                 {
-                    index = (red_front_still.dimensions.x + column + (red_front_still.dimensions.y + row) * WIDTH); // pixel index
-                    if (colour->R > d)
-                    {
-                        colourPort |= RED_1;
-                    }
-                    if (colour->G > d)
-                    {
-                        colourPort |= GREEN_1;
-                    }
-                    if (colour->B > d)
-                    {
-                        colourPort |= BLUE_1;
-                    }
+                    // Do not draw, this is a transparent pixel
                 }
                 else
                 {
-                    index = (red_front_still.dimensions.x + column + (red_front_still.dimensions.y + row - 16) * WIDTH); // pixel index
-                    if (colour->R > d)
+                    colourPort = 0;
+                    if ((red_front_still.dimensions.y + row) < 16)
                     {
-                        colourPort |= RED_2;
+                        index = (red_front_still.dimensions.x + column + (red_front_still.dimensions.y + row) * WIDTH); // pixel index
+                        if (colour->R > d)
+                        {
+                            colourPort |= RED_1;
+                        }
+                        if (colour->G > d)
+                        {
+                            colourPort |= GREEN_1;
+                        }
+                        if (colour->B > d)
+                        {
+                            colourPort |= BLUE_1;
+                        }
                     }
-                    if (colour->G > d)
+                    else
                     {
-                        colourPort |= GREEN_2;
+                        index = (red_front_still.dimensions.x + column + (red_front_still.dimensions.y + row - 16) * WIDTH); // pixel index
+                        if (colour->R > d)
+                        {
+                            colourPort |= RED_2;
+                        }
+                        if (colour->G > d)
+                        {
+                            colourPort |= GREEN_2;
+                        }
+                        if (colour->B > d)
+                        {
+                            colourPort |= BLUE_2;
+                        }
                     }
-                    if (colour->B > d)
+                    if ((index & 0x1) == 0)
                     {
-                        colourPort |= BLUE_2;
+                        buffer[d][index >> 1] |= colourPort;
+                    }
+                    else
+                    {
+                        buffer[d][index >> 1] |= (colourPort << 8);
                     }
                 }
-                if ((index & 0x1) == 0)
+                break;
+
+            case eDigimon:
+
+                colour = &biyomonLower.colour[(biyomonLower.pixel[row] >> (30 - column * 2)) & 0x03];
+                if (
+                    (0 == colour->R) &&
+                    (0 == colour->G) &&
+                    (0 == colour->B) &&
+                    (1 == biyomonLower.transparency)
+                )
                 {
-                    buffer[d][index >> 1] = colourPort;
+                    // Do not draw, this is a transparent pixel
                 }
                 else
                 {
-                    buffer[d][index >> 1] |= (colourPort << 8);
+                    colourPort = 0;
+                    if ((biyomonLower.dimensions.y + row) < 16)
+                    {
+                        index = (biyomonLower.dimensions.x + column + (biyomonLower.dimensions.y + row) * WIDTH); // pixel index
+                        if (colour->R > d)
+                        {
+                            colourPort |= RED_1;
+                        }
+                        if (colour->G > d)
+                        {
+                            colourPort |= GREEN_1;
+                        }
+                        if (colour->B > d)
+                        {
+                            colourPort |= BLUE_1;
+                        }
+                    }
+                    else
+                    {
+                        index = (biyomonLower.dimensions.x + column + (biyomonLower.dimensions.y + row - 16) * WIDTH); // pixel index
+                        if (colour->R > d)
+                        {
+                            colourPort |= RED_2;
+                        }
+                        if (colour->G > d)
+                        {
+                            colourPort |= GREEN_2;
+                        }
+                        if (colour->B > d)
+                        {
+                            colourPort |= BLUE_2;
+                        }
+                    }
+                    if ((index & 0x1) == 0)
+                    {
+                        buffer[d][index >> 1] |= colourPort;
+                    }
+                    else
+                    {
+                        buffer[d][index >> 1] |= (colourPort << 8);
+                    }
                 }
+
+                colour = &biyomonUpper.colour[(biyomonUpper.pixel[row] >> (30 - column * 2)) & 0x03];
+                if (
+                    (0 == colour->R) &&
+                    (0 == colour->G) &&
+                    (0 == colour->B) &&
+                    (1 == biyomonUpper.transparency)
+                )
+                {
+                    // Do not draw, this is a transparent pixel
+                }
+                else
+                {
+                    colourPort = 0;
+                    if ((biyomonUpper.dimensions.y + row) < 16)
+                    {
+                        index = (biyomonUpper.dimensions.x + column + (biyomonUpper.dimensions.y + row) * WIDTH); // pixel index
+                        if (colour->R > d)
+                        {
+                            colourPort |= RED_1;
+                        }
+                        if (colour->G > d)
+                        {
+                            colourPort |= GREEN_1;
+                        }
+                        if (colour->B > d)
+                        {
+                            colourPort |= BLUE_1;
+                        }
+                    }
+                    else
+                    {
+                        index = (biyomonUpper.dimensions.x + column + (biyomonUpper.dimensions.y + row - 16) * WIDTH); // pixel index
+                        if (colour->R > d)
+                        {
+                            colourPort |= RED_2;
+                        }
+                        if (colour->G > d)
+                        {
+                            colourPort |= GREEN_2;
+                        }
+                        if (colour->B > d)
+                        {
+                            colourPort |= BLUE_2;
+                        }
+                    }
+                    if ((index & 0x1) == 0)
+                    {
+                        buffer[d][index >> 1] |= colourPort;
+                    }
+                    else
+                    {
+                        buffer[d][index >> 1] |= (colourPort << 8);
+                    }
+                }
+
+                colour = &biyomonQuil.colour[(biyomonQuil.pixel[row] >> (30 - column * 2)) & 0x03];
+                if (
+                    (0 == colour->R) &&
+                    (0 == colour->G) &&
+                    (0 == colour->B) &&
+                    (1 == biyomonQuil.transparency)
+                )
+                {
+                    // Do not draw, this is a transparent pixel
+                }
+                else
+                {
+                    colourPort = 0;
+                    if ((biyomonQuil.dimensions.y + row) < 16)
+                    {
+                        index = (biyomonQuil.dimensions.x + column + (biyomonQuil.dimensions.y + row) * WIDTH); // pixel index
+                        if (colour->R > d)
+                        {
+                            colourPort |= RED_1;
+                        }
+                        if (colour->G > d)
+                        {
+                            colourPort |= GREEN_1;
+                        }
+                        if (colour->B > d)
+                        {
+                            colourPort |= BLUE_1;
+                        }
+                    }
+                    else
+                    {
+                        index = (biyomonQuil.dimensions.x + column + (biyomonQuil.dimensions.y + row - 16) * WIDTH); // pixel index
+                        if (colour->R > d)
+                        {
+                            colourPort |= RED_2;
+                        }
+                        if (colour->G > d)
+                        {
+                            colourPort |= GREEN_2;
+                        }
+                        if (colour->B > d)
+                        {
+                            colourPort |= BLUE_2;
+                        }
+                    }
+                    if ((index & 0x1) == 0)
+                    {
+                        buffer[d][index >> 1] |= colourPort;
+                    }
+                    else
+                    {
+                        buffer[d][index >> 1] |= (colourPort << 8);
+                    }
+                }
+
+                colour = &agumon.colour[(agumon.pixel[row] >> (30 - column * 2)) & 0x03];
+                if (
+                    (0 == colour->R) &&
+                    (0 == colour->G) &&
+                    (0 == colour->B) &&
+                    (1 == agumon.transparency)
+                )
+                {
+                    // Do not draw, this is a transparent pixel
+                }
+                else
+                {
+                    colourPort = 0;
+                    if ((agumon.dimensions.y + row) < 16)
+                    {
+                        index = (agumon.dimensions.x + column + (agumon.dimensions.y + row) * WIDTH); // pixel index
+                        if (colour->R > d)
+                        {
+                            colourPort |= RED_1;
+                        }
+                        if (colour->G > d)
+                        {
+                            colourPort |= GREEN_1;
+                        }
+                        if (colour->B > d)
+                        {
+                            colourPort |= BLUE_1;
+                        }
+                    }
+                    else
+                    {
+                        index = (agumon.dimensions.x + column + (agumon.dimensions.y + row - 16) * WIDTH); // pixel index
+                        if (colour->R > d)
+                        {
+                            colourPort |= RED_2;
+                        }
+                        if (colour->G > d)
+                        {
+                            colourPort |= GREEN_2;
+                        }
+                        if (colour->B > d)
+                        {
+                            colourPort |= BLUE_2;
+                        }
+                    }
+                    if ((index & 0x1) == 0)
+                    {
+                        buffer[d][index >> 1] |= colourPort;
+                    }
+                    else
+                    {
+                        buffer[d][index >> 1] |= (colourPort << 8);
+                    }
+                }
+                break;
+
+            case eFranxx:
+                colour = &franxx_0_0.colour[(franxx_0_0.pixel[row] >> (30 - column * 2)) & 0x03];
+                if (
+                    (0 == colour->R) &&
+                    (0 == colour->G) &&
+                    (0 == colour->B) &&
+                    (1 == franxx_0_0.transparency)
+                )
+                {
+                    // Do not draw, this is a transparent pixel
+                }
+                else
+                {
+                    colourPort = 0;
+                    if ((franxx_0_0.dimensions.y + row) < 16)
+                    {
+                        index = (franxx_0_0.dimensions.x + column + (franxx_0_0.dimensions.y + row) * WIDTH); // pixel index
+                        if (colour->R > d)
+                        {
+                            colourPort |= RED_1;
+                        }
+                        if (colour->G > d)
+                        {
+                            colourPort |= GREEN_1;
+                        }
+                        if (colour->B > d)
+                        {
+                            colourPort |= BLUE_1;
+                        }
+                    }
+                    else
+                    {
+                        index = (franxx_0_0.dimensions.x + column + (franxx_0_0.dimensions.y + row - 16) * WIDTH); // pixel index
+                        if (colour->R > d)
+                        {
+                            colourPort |= RED_2;
+                        }
+                        if (colour->G > d)
+                        {
+                            colourPort |= GREEN_2;
+                        }
+                        if (colour->B > d)
+                        {
+                            colourPort |= BLUE_2;
+                        }
+                    }
+                    if ((index & 0x1) == 0)
+                    {
+                        buffer[d][index >> 1] |= colourPort;
+                    }
+                    else
+                    {
+                        buffer[d][index >> 1] |= (colourPort << 8);
+                    }
+                }
+
+                colour = &franxx_1_0.colour[(franxx_1_0.pixel[row] >> (30 - column * 2)) & 0x03];
+                if (
+                    (0 == colour->R) &&
+                    (0 == colour->G) &&
+                    (0 == colour->B) &&
+                    (1 == franxx_1_0.transparency)
+                )
+                {
+                    // Do not draw, this is a transparent pixel
+                }
+                else
+                {
+                    colourPort = 0;
+                    if ((franxx_1_0.dimensions.y + row) < 16)
+                    {
+                        index = (franxx_1_0.dimensions.x + column + (franxx_1_0.dimensions.y + row) * WIDTH); // pixel index
+                        if (colour->R > d)
+                        {
+                            colourPort |= RED_1;
+                        }
+                        if (colour->G > d)
+                        {
+                            colourPort |= GREEN_1;
+                        }
+                        if (colour->B > d)
+                        {
+                            colourPort |= BLUE_1;
+                        }
+                    }
+                    else
+                    {
+                        index = (franxx_1_0.dimensions.x + column + (franxx_1_0.dimensions.y + row - 16) * WIDTH); // pixel index
+                        if (colour->R > d)
+                        {
+                            colourPort |= RED_2;
+                        }
+                        if (colour->G > d)
+                        {
+                            colourPort |= GREEN_2;
+                        }
+                        if (colour->B > d)
+                        {
+                            colourPort |= BLUE_2;
+                        }
+                    }
+                    if ((index & 0x1) == 0)
+                    {
+                        buffer[d][index >> 1] |= colourPort;
+                    }
+                    else
+                    {
+                        buffer[d][index >> 1] |= (colourPort << 8);
+                    }
+                }
+
+                colour = &franxx_0_1.colour[(franxx_0_1.pixel[row] >> (30 - column * 2)) & 0x03];
+                if (
+                    (0 == colour->R) &&
+                    (0 == colour->G) &&
+                    (0 == colour->B) &&
+                    (1 == franxx_0_1.transparency)
+                )
+                {
+                    // Do not draw, this is a transparent pixel
+                }
+                else
+                {
+                    colourPort = 0;
+                    if ((franxx_0_1.dimensions.y + row) < 16)
+                    {
+                        index = (franxx_0_1.dimensions.x + column + (franxx_0_1.dimensions.y + row) * WIDTH); // pixel index
+                        if (colour->R > d)
+                        {
+                            colourPort |= RED_1;
+                        }
+                        if (colour->G > d)
+                        {
+                            colourPort |= GREEN_1;
+                        }
+                        if (colour->B > d)
+                        {
+                            colourPort |= BLUE_1;
+                        }
+                    }
+                    else
+                    {
+                        index = (franxx_0_1.dimensions.x + column + (franxx_0_1.dimensions.y + row - 16) * WIDTH); // pixel index
+                        if (colour->R > d)
+                        {
+                            colourPort |= RED_2;
+                        }
+                        if (colour->G > d)
+                        {
+                            colourPort |= GREEN_2;
+                        }
+                        if (colour->B > d)
+                        {
+                            colourPort |= BLUE_2;
+                        }
+                    }
+                    if ((index & 0x1) == 0)
+                    {
+                        buffer[d][index >> 1] |= colourPort;
+                    }
+                    else
+                    {
+                        buffer[d][index >> 1] |= (colourPort << 8);
+                    }
+                }
+
+                colour = &franxx_1_1.colour[(franxx_1_1.pixel[row] >> (30 - column * 2)) & 0x03];
+                if (
+                    (0 == colour->R) &&
+                    (0 == colour->G) &&
+                    (0 == colour->B) &&
+                    (1 == franxx_1_1.transparency)
+                )
+                {
+                    // Do not draw, this is a transparent pixel
+                }
+                else
+                {
+                    colourPort = 0;
+                    if ((franxx_1_1.dimensions.y + row) < 16)
+                    {
+                        index = (franxx_1_1.dimensions.x + column + (franxx_1_1.dimensions.y + row) * WIDTH); // pixel index
+                        if (colour->R > d)
+                        {
+                            colourPort |= RED_1;
+                        }
+                        if (colour->G > d)
+                        {
+                            colourPort |= GREEN_1;
+                        }
+                        if (colour->B > d)
+                        {
+                            colourPort |= BLUE_1;
+                        }
+                    }
+                    else
+                    {
+                        index = (franxx_1_1.dimensions.x + column + (franxx_1_1.dimensions.y + row - 16) * WIDTH); // pixel index
+                        if (colour->R > d)
+                        {
+                            colourPort |= RED_2;
+                        }
+                        if (colour->G > d)
+                        {
+                            colourPort |= GREEN_2;
+                        }
+                        if (colour->B > d)
+                        {
+                            colourPort |= BLUE_2;
+                        }
+                    }
+                    if ((index & 0x1) == 0)
+                    {
+                        buffer[d][index >> 1] |= colourPort;
+                    }
+                    else
+                    {
+                        buffer[d][index >> 1] |= (colourPort << 8);
+                    }
+                }
+                break;
             }
         }
     }
